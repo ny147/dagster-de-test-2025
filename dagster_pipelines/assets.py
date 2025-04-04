@@ -32,7 +32,7 @@ def kpi_fy(context: dg.AssetExecutionContext):
 @dg.asset(compute_kind="duckdb", group_name="plan")
 def m_center(context: dg.AssetExecutionContext):
     df_m_center = read_csv()
-    load_to_duckdb(df_m_center,"M_Cente")
+    load_to_duckdb(df_m_center,"M_Center")
     pass
 
 # 2.3.2 Create asset kpi_fy_final_asset()
@@ -43,7 +43,7 @@ def kpi_fy_final_asset(context: dg.AssetExecutionContext):
         with duckdb.connect("/opt/dagster/app/dagster_pipelines/db/plan.db") as con:
             logger.info("Connected to DuckDB successfully.")
             
-            query = "SELECT * ,CURRENT_TIMESTAMP as updated_at FROM plan.plan.KPI_FY FY inner join plan.plan.M_Cente mc On mc.Center_ID=FY.Center_ID"
+            query = "SELECT * ,CURRENT_TIMESTAMP as updated_at FROM plan.plan.KPI_FY FY inner join plan.plan.M_Center mc On mc.Center_ID=FY.Center_ID"
             result_df = con.execute(query).fetchdf()
             
             load_to_duckdb(result_df,"KPI_FY_Final")
