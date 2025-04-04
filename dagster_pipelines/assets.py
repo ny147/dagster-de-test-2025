@@ -2,15 +2,53 @@ import dagster as dg
 from dagster_pipelines.etl.extract import read_excel, read_csv
 from dagster_pipelines.etl.transform import pivot_data
 from dagster_pipelines.etl.load import load_to_duckdb
+from dagster_pipelines.etl.utils import check_column_type
+from dagster import get_dagster_logger
+import duckdb
+
+# 2.5 Load pivoted KPI_FY.xlsm into KPI_FY
+@dg.asset(compute_kind="duckdb", group_name="plan")
+def kpi_fy_data_validation(context: dg.AssetExecutionContext):
+    column_type = {
+
+    'Fiscal_Year' : 'int64', 'Center_ID' :'object', 'Kpi Number' :'object', 'Kpi_Name':'object', 'Unit':'object',
+       'Plan_Total' : 'float64', 'Plan_Q1': 'float64', 'Plan_Q2': 'float64', 'Plan_Q3': 'float64', 'Plan_Q4': 'float64',
+       'Actual_Total' : 'object', 'Actual_Q1': 'float64', 'Actual_Q2': 'float64', 'Actual_Q3': 'float64', 'Actual_Q4': 'float64'
+    }
+    df_kpi = read_excel()
+    check_column_type(df_kpi,column_type)
+    pass
 
 # 2.3.1.1 Load pivoted KPI_FY.xlsm into KPI_FY
-@dg.asset(compute_kind="duckdb", group_name="plan")
+@dg.asset(compute_kind="duckdb", group_name="plan",deps=["kpi_fy_data_validation"])
 def kpi_fy(context: dg.AssetExecutionContext):
+    df_kpi = read_excel()
+    df_pivot = pivot_data(df_kpi)
+    load_to_duckdb(df_pivot,"KPI_FY")
+    
     pass
 
 # 2.3.1.2 Load M_Center.csv into M_Center
 @dg.asset(compute_kind="duckdb", group_name="plan")
 def m_center(context: dg.AssetExecutionContext):
+    df_m_center = read_csv()
+    load_to_duckdb(df_m_center,"M_Cente")
     pass
 
 # 2.3.2 Create asset kpi_fy_final_asset()
+@dg.asset(compute_kind="duckdb", group_name="plan",deps=["m_center","kpi_fy"])
+def kpi_fy_final_asset(context: dg.AssetExecutionContext):
+    logger = get_dagster_logger()
+    try:
+        with duckdb.connect("/opt/dagster/app/dagster_pipelines/db/plan.db") as con:
+            logger.info("Connected to DuckDB successfully.")
+            
+            query = "SELECT * ,CURRENT_TIMESTAMP as updated_at FROM plan.plan.KPI_FY FY inner join plan.plan.M_Cente mc On mc.Center_ID=FY.Center_ID"
+            result_df = con.execute(query).fetchdf()
+            
+            load_to_duckdb(result_df,"KPI_FY_Final")
+
+    except Exception as e:
+        logger.error(f"Error loading data into DuckDB: {e}")
+        raise
+    
