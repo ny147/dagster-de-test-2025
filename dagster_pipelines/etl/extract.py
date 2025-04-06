@@ -7,7 +7,7 @@ def read_excel() -> pd.DataFrame:
     # pass
 
 # 2.1.2 Read center master data from the "M_Center.csv" CSV file
-def read_csv() -> pd.DataFrame:
-    df_csv = pd.read_csv('dagster_pipelines/data/M_Center.csv')
+def read_csv(name) -> pd.DataFrame:
+    df_csv = pd.read_csv(f"dagster_pipelines/data/{name}.csv")
     return df_csv
     # pass
